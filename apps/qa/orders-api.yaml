@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: orders-api-qa
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+    kargo.akuity.io/authorized-stage: orders:qa
+spec:
+  project: orders-project
+  source:
+    repoURL: https://github.com/AaronStahley/orders-gitops.git
+    targetRevision: stage/qa
+    path: manifests/orders-api/overlays/qa
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: orders-qa
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

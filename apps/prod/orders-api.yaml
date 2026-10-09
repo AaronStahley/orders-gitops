@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: orders-api-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+    kargo.akuity.io/authorized-stage: orders:prod
+spec:
+  project: orders-project
+  source:
+    repoURL: https://github.com/AaronStahley/orders-gitops.git
+    targetRevision: stage/prod
+    path: manifests/orders-api/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: orders-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,21 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: orders-api
+  namespace: orders
+spec:
+  # Freight pairs a Git commit (the manifests) with a container image version.
+  subscriptions:
+    # Track Git commits that touch this app's manifests
+    - git:
+        repoURL: https://github.com/AaronStahley/orders-gitops.git
+        commitSelectionStrategy: NewestFromBranch
+        branch: main
+        includePaths:
+          - manifests/orders-api/
+    # Discover release images (podinfo publishes plain semver tags, no "v" prefix)
+    - image:
+        repoURL: ghcr.io/stefanprodan/podinfo
+        semverConstraint: ">=6.0.0"
+        discoveryLimit: 10
+        allowTags: ^\d+\.\d+\.\d+$

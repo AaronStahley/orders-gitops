@@ -1,0 +1,74 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: qa
+  namespace: orders
+  annotations:
+    kargo.akuity.io/color: yellow
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: orders-api
+      sources:
+        stages:
+          - dev
+
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: git-clone
+          config:
+            repoURL: https://github.com/AaronStahley/orders-gitops.git
+            checkout:
+              # Clone the source commit (from Freight)
+              - commit: ${{ commitFrom("https://github.com/AaronStahley/orders-gitops.git").ID }}
+                path: ./src
+              # Clone the output stage/qa branch
+              - branch: stage/qa
+                create: true
+                path: ./out
+
+        - uses: yaml-update
+          as: update-api
+          config:
+            path: ./src/manifests/orders-api/base/webapi.yaml
+            updates:
+              - key: spec.image.tag
+                value: ${{ imageFrom("ghcr.io/stefanprodan/podinfo").Tag }}
+
+        - uses: git-clear
+          config:
+            path: ./out
+
+        - uses: copy
+          config:
+            inPath: ./src/manifests/orders-api/base
+            outPath: ./out/manifests/orders-api/base
+
+        - uses: copy
+          config:
+            inPath: ./src/manifests/orders-api/overlays/qa
+            outPath: ./out/manifests/orders-api/overlays/qa
+
+        # Commit to output branch
+        - uses: git-commit
+          config:
+            path: ./out
+            message: |
+              Promote orders-api ${{ imageFrom("ghcr.io/stefanprodan/podinfo").Tag }} to qa
+
+              Source commit: ${{ commitFrom("https://github.com/AaronStahley/orders-gitops.git").ID }}
+
+        # Push to stage/qa branch
+        - uses: git-push
+          config:
+            path: ./out
+            targetBranch: stage/qa
+
+        # Trigger ArgoCD sync
+        - uses: argocd-update
+          config:
+            apps:
+              - name: orders-api-qa
+                namespace: argocd
